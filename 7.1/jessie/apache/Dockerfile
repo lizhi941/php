@@ -69,17 +69,24 @@ RUN set -ex \
 #   : ${APACHE_RUN_USER:=www-data}
 #   export APACHE_RUN_USER
 # so that they can be overridden at runtime ("-e APACHE_RUN_USER=...")
+
 #sed命令表示输入文件，选项r代表扩展型正则表达式，选项i代表直接编辑,s命令代表替换指定字符。
 #sed的选项用“-”连接，命令用“'”连接，s紧跟的/为分割符。
-#^表示正则匹配开始,$表示匹配结束，()表示一个表达式，[]表示匹配的字符范围，+表示匹配前面的表达式多次，{}表示匹配的长度
+#^表示正则匹配开始,如果在中括号里则表示不匹配该字符。$表示匹配结束，()表示一个表达式，[]表示匹配的字符范围，+表示匹配前面的表达式多次，{}表示匹配的长度
 #.代表任意字符，*代表任意字符的个数为0或者多个，\1表示用户定义的表示式匹配到的第1组，\2表示用户定义的表达式匹配到的第2组
 #\n代表换行或者回车
-#'s/^export ([^=]+)=(.*)$/: ${\1:=\2}\nexport \1/'到$APACHE_ENVVARS文件中。
-#bash中命令export为输出环境变量，默认该命令输出所有定义的环境变量
-#正则表达式表示：
+#所以's/^export ([^=]+)=(.*)$/: ${\1:=\2}\nexport \1/'中/^export ([^=]+)=(.*)$代表匹配模式，匹配$APACHE_ENVVARS中的内容
+#/: ${\1:=\2}\nexport \1代表要替换成该内容。
+#例如export  abc=12334 替换后就是：
+#:${abc=12345}
+#export abc
+
 	&& sed -ri 's/^export ([^=]+)=(.*)$/: ${\1:=\2}\nexport \1/' "$APACHE_ENVVARS" \
 	\
-# setup directories and permissions
+# setup directories and permissions 设置目录和权限
+#读入环境变量文件$APACHE_ENVVARS中的设置，for语句表示将$APACHE_LOCK_DIR，$APACHE_RUN_DIR，$APACHE_LOG_DIR，/var/www/html所
+#\代表的目录先删除（rm命令中r代表递归删除，v代表显示详细信息，f代表忽略不存在的文件），然后再重建该目录，并改变其权限修改为$APACHE_RUN_GROUP
+#\的$APACHE_RUN_USER
 	&& . "$APACHE_ENVVARS" \
 	&& for dir in \
 		"$APACHE_LOCK_DIR" \
@@ -93,6 +100,8 @@ RUN set -ex \
 	done
 
 # Apache + PHP requires preforking Apache for best results
+#a2enmod是属于apache2.2-common，可用用来开启apache的模块。一共有三种稳定的MPM（Multi-Processing Module，多进程处理模块）模式。
+#/它们分别是prefork，worker和event模式我们这里禁用event，开启prefork模式。
 RUN a2dismod mpm_event && a2enmod mpm_prefork
 
 # logs should go to stdout / stderr
