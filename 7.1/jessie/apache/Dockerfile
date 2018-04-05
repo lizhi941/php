@@ -2,13 +2,17 @@
 # NOTE: THIS DOCKERFILE IS GENERATED VIA "update.sh"
 #
 # PLEASE DO NOT EDIT IT DIRECTLY.
-#
+#这个镜像是基于debian:jessie镜像制作
 
 FROM debian:jessie
 
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
-RUN set -eux; \
+#阻止Debian默认php包的安装。将相关需要阻止的安装的包名写入no-debian-php文件中。
+#RUN为docker中的指令，表示在镜像执行shell中的bash命令，
+#set命令表示执行命令开始，-eux参数中e表示脚本执行有错误就终止，u表示遇到不存在的变量，报错终止脚本，
+#-x表示多命令连续执行时，在运行结果前，先输出执行的命令。
+RUN set -eux; \               
 	{ \
 		echo 'Package: php*'; \
 		echo 'Pin: release *'; \
