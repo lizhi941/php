@@ -202,8 +202,8 @@ RUN set -xe; \
 	\
 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $fetchDeps #用完后删除已安装包，不保留配置文件。
 
-COPY docker-php-source /usr/local/bin/   docker命令 复制文件docker-php-source 到目录/usr/local/bin/ 
-
+COPY docker-php-source /usr/local/bin/   #docker命令 复制文件docker-php-source 到目录/usr/local/bin/ ，该文件是一个命令，
+                                         #该文件在该目录的上层可以找到，使用时，放在和dokerfile同一目录即可。
 RUN set -eux; \
 	\
 	savedAptMark="$(apt-mark showmanual)"; \  #显示已经安装的包，请将其写入saveAptMark变量中
@@ -224,32 +224,33 @@ RUN set -eux; \
 		CPPFLAGS="$PHP_CPPFLAGS" \ #
 		LDFLAGS="$PHP_LDFLAGS" \ # gcc 等编译器会用到的一些优化参数，也可以在里面指定库文件的位置
 	; \
-	docker-php-source extract; \ 
-	cd /usr/src/php; \
-	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
-	debMultiarch="$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \
+	docker-php-source extract; \ #在前面已经将docker-php-source命令复制到目录/usr/bin中，所以其可以直接执行。该命令主要是建目录，解压。
+	                             #看/usr/src/php.tar.xz是否已经解压，如果还没有，就解压，并生成docker-extracted标志文件。
+	cd /usr/src/php; \ #进入php目录
+	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \  #dpkg是一个安装、创建、移除和管理debian包的工具。查询DEB_BUILD_GNU_TYPE值
+	debMultiarch="$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \ #查询DEB_BUILD_MULTIARCH值，用于交叉编译
 # https://bugs.php.net/bug.php?id=74125
-	if [ ! -d /usr/include/curl ]; then \
-		ln -sT "/usr/include/$debMultiarch/curl" /usr/local/include/curl; \
+	if [ ! -d /usr/include/curl ]; then \   #如果存在目录/usr/include/curl就执行
+		ln -sT "/usr/include/$debMultiarch/curl" /usr/local/include/curl; \ #设立链接
 	fi; \
-	./configure \
-		--build="$gnuArch" \
-		--with-config-file-path="$PHP_INI_DIR" \
-		--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+	./configure \                                                            #编译参数设置
+		--build="$gnuArch" \                                            #编译的价格如arm，x86等
+		--with-config-file-path="$PHP_INI_DIR" \                         #编译文件的路径
+		--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \                #编译扫描的目录
 		\
-		--disable-cgi \
+		--disable-cgi \                                                     #禁止php的cgi。CGI已经是比较老的模式了，这几年都很少用了，效率低
 		\
 # --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
-		--enable-ftp \
+		--enable-ftp \                                   #开启ftp
 # --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
 		--enable-mbstring \
 # --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
 		--enable-mysqlnd \
 		\
-		--with-curl \
-		--with-libedit \
-		--with-openssl \
-		--with-zlib \
+		--with-curl \     
+		--with-libedit \ 
+		--with-openssl \    
+		--with-zlib \    
 		\
 # bundled pcre does not support JIT on s390x
 # https://manpages.debian.org/stretch/libpcre3-dev/pcrejit.3.en.html#AVAILABILITY_OF_JIT_SUPPORT
